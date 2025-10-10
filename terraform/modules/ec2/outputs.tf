@@ -13,3 +13,7 @@ output "private_ip" {
 output "public_dns" {
   value = aws_instance.my_ec2.public_dns
 }
+
+output "ssh_key_name" {
+     value = aws_key_pair.my_key.key_name
+}

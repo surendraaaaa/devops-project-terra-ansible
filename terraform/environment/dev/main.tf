@@ -16,5 +16,25 @@ module "ec2" {
   instance_name         = "devops-ec2"
   instance_type         = "t3.micro"
   subnet_id             = module.vpc.subnet_id
-  vpc_security_group_ids     = module.vpc.security_group_id
+  security_group_id = module.vpc.security_group_id
+
+}
+
+module "eks" {
+  source                = "../../modules/eks"
+  cluster_name              = "dev-eks-cluster"
+  k8s_version               = "1.28"
+  subnet_ids                = [module.vpc.subnet_id]
+  cluster_sg_id             = module.vpc.security_group_id
+  node_instance_type        = "t3.micro"
+  node_desired_capacity     = 1
+  node_max_size             = 2
+  node_min_size             = 1
+  ssh_key_name              = module.ec2.ssh_key_name
+
+  depends_on = [
+    module.vpc,
+    module.ec2
+  ]
+
 }
