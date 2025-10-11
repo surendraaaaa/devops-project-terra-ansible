@@ -5,7 +5,7 @@ variable "cluster_name" {
 
 variable "k8s_version" {
   description = "Kubernetes version"
-  default     = "1.28"
+  default     = "1.29"
 }
 
 variable "subnet_ids" {

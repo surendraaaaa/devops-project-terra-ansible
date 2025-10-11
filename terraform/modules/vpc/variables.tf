@@ -3,11 +3,13 @@ variable "cidr_block" {
 }
 
 variable "subnet_cidr" {
-  default = "10.0.1.0/24"
+  type    = list(string)
+  default = ["10.0.1.0/24", "10.0.2.0/24"]
 }
 
 variable "az" {
-  default = "us-east-2a"
+  type    = list(string)
+  default = ["us-east-2a", "us-east-2b"]
 }
 
 variable "vpc_name" {
@@ -15,7 +17,8 @@ variable "vpc_name" {
 }
 
 variable "subnet_name" {
-  default = "dev_subnet"
+  type    = list(string)
+  default = ["dev_subnet_a", "dev_subnet_b"]
 }
 
 variable "sg_name" {
@@ -23,9 +26,9 @@ variable "sg_name" {
 }
 
 variable "igw_name" {
-    default = "dev_igw"
+  default = "dev_igw"
 }
 
 variable "rt_name" {
-    default = "dev_public_rt"
+  default = "dev_public_rt"
 }
