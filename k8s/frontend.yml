@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name:  frontend-deployment
+  namespace: dev-terra-ansible
+  labels:
+    app:  frontend-app
+spec:
+  selector:
+    matchLabels:
+      app: frontend-app
+  replicas: 1
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app:  frontend-app
+    spec:
+      containers:
+      - name:  frontend-app
+        image: surendraprajapati/devops-terra-ansible-frontend:latest
+        ports:
+        - containerPort:  3000
+        env:
+        - name: BACKEND_URL
+          value: http://backend-service:5000/api/tasks
+         
+       # resources:
+        #  requests:
+         #   memory: "128Mi"
+          #  cpu: "250m"
+         # limits:
+          #  memory: "256Mi"
+          #  cpu: "500m"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+  namespace: dev-terra-ansible
+spec:
+  selector:
+    app: frontend-app
+  type: NodePort
+  sessionAffinity: None
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
+  ports:
+  - name: frontend-app
+    protocol: TCP
+    port: 3000
+    targetPort: 3000
+    nodePort: 30800
+
+        

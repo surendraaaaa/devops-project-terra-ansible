@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: 
+  name: backend-deployment
+  namespace: dev-terra-ansible
+  labels:
+    app: backend-app
+  
+
+spec: 
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend-app
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: backend-app
+    spec:
+      containers:
+      - name: backend-app
+        image: surendraprajapati/devops-terra-ansible-backend:latest
+        ports:
+        - containerPort: 5000
+        env:
+        - name: MONGO_URL
+          value: mongodb://mongo-service:27017/mydb
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "250m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+
+---
+apiVersion: v1
+kind: Service
+metadata: 
+  name: backend-service
+  namespace: dev-terra-ansible
+spec: 
+  selector:
+    app: backend-app
+  type: NodePort
+  ports:
+  - name: backend-port
+    protocol: TCP
+    port: 5000
+    targetPort: 5000
+    nodePort: 30900
