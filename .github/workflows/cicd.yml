@@ -98,7 +98,7 @@ jobs:
         env:
             KUBECONFIG: ${{ github.workspace }}/kubeconfig/kubeconfig.yaml
         run: |
-              # ansible-galaxy install -r ansible/playbooks/requirements.yml -p ansible/playbooks/roles
+              ansible-galaxy install -r ansible/playbooks/requirements.yml -p ansible/playbooks/roles
               ansible-playbook ansible/playbooks/deploy-app.yml -i ansible/inventories/dev/hosts.yml \
                   -e "docker_username=$DOCKERHUB_USERNAME" \
                   -e "docker_password=$DOCKERHUB_PASSWORD" \
