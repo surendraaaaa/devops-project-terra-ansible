@@ -1,12 +1,12 @@
 terraform {
   required_providers {
     aws = {
-      source = "hashicorp/aws"
+      source  = "hashicorp/aws"
       version = "6.16.0"
     }
   }
 
-   cloud {
+  cloud {
     organization = "my-remote-backend" # Your Terraform Cloud org
 
     workspaces {
@@ -14,3 +14,10 @@ terraform {
     }
   }
 }
+
+
+
+provider "aws" {
+  region = var.aws_region
+}
+
