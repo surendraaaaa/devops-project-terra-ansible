@@ -1,25 +1,23 @@
 name: Destroy Infra & Clean Environment
 
 on:
-  workflow_dispatch: # manual trigger from GitHub Actions
+  workflow_dispatch: # manual trigger
 
 env:
-  
-  AWS_REGION: ${{ secrets.AWS_REGION }}
-  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_KEY }}
+  AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
+  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+  DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
   TF_API_TOKEN: ${{ secrets.TF_API_TOKEN }}
-  DOCKERHUB_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-  DOCKERHUB_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
 
 jobs:
   destroy:
-    name: Destroy Terraform Infrastructure & Clean Environment
     runs-on: ubuntu-latest
 
     steps:
       # 1️⃣ Checkout repository
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v4
 
       # 2️⃣ Set up Terraform
@@ -27,48 +25,46 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.7.0
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
 
-      # 3️⃣ Initialize Terraform (with backend)
+      # 3️⃣ Terraform init (required for Terraform Cloud)
       - name: Terraform Init
-        working-directory: ./terraform/environment/dev
+        working-directory: terraform/environment/dev
         run: terraform init
 
       # 4️⃣ Destroy Terraform infrastructure
       - name: Terraform Destroy
-        working-directory: ./terraform/environment/dev
+        working-directory: terraform/environment/dev
         run: terraform destroy -auto-approve
 
-      # 5️⃣ Set up Python & install Ansible
+      # 5️⃣ Set up Python & Ansible
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
-      - name: Install Ansible & dependencies
+      # 6️⃣ Install Ansible & Kubernetes collection
+      - name: Install Ansible & Kubernetes Collection
         run: |
           python -m pip install --upgrade pip
-          pip install ansible boto3 kubernetes
+          pip install ansible
           ansible-galaxy collection install kubernetes.core
 
-      # 6️⃣ Remove Kubernetes resources via Ansible (optional if EKS already gone)
+      # 7️⃣ Remove Kubernetes resources via Ansible
       - name: Clean K8s Resources
         run: |
-          ansible-playbook ./ansible/playbooks/clean-env.yml -i ./ansible/inventories/dev/hosts.yml || true
+          ansible-playbook ./ansible/playbooks/clean-env.yml -i ./ansible/inventories/dev/hosts.yml
 
-      # 7️⃣ Log in to DockerHub
+      # 8️⃣ Log in to Docker
       - name: Docker Login
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # 8️⃣ Remove Docker containers & images (GitHub runner cleanup)
+      # 9️⃣ Remove Docker containers & images
       - name: Clean Docker
         run: |
-          docker ps -aq | xargs -r docker stop || true
-          docker ps -aq | xargs -r docker rm || true
-          docker images -q | xargs -r docker rmi || true
-
-      # 9️⃣ Final confirmation
-      - name: Confirm cleanup complete
-        run: echo "✅ Infrastructure destroyed and environment cleaned successfully!"
+          docker stop $(docker ps -aq) || true
+          docker rm $(docker ps -aq) || true
+          docker rmi $(docker images -q) || true
