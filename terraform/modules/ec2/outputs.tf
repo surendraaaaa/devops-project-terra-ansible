@@ -15,5 +15,10 @@ output "public_dns" {
 }
 
 output "ssh_key_name" {
-     value = aws_key_pair.my_key.key_name
+  value = aws_key_pair.my_key.key_name
+}
+
+output "private_key_pem" {
+  value     = tls_private_key.my_key.private_key_pem
+  sensitive = true
 }
