@@ -1,0 +1,11 @@
+---
+- name: Full DevOps Automation - Node, Docker, Kubernetes
+  hosts: all
+  become: true
+  vars_files:
+    - ../group_vars/all.yml   # common variables
+
+  roles:
+    - node-setup     # install packages, Docker, Kubernetes tools
+    - docker         # build and push Docker images
+    - k8s            # deploy your all-in-one.yml manifest

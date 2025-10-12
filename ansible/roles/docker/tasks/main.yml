@@ -1,0 +1,25 @@
+---
+# roles/docker/tasks/main.yml
+
+- name: Log in to Docker Hub
+  community.docker.docker_login:
+    username: "{{ docker_username }}"
+    password: "{{ docker_password }}"
+
+- name: Build frontend Docker image
+  community.docker.docker_image:
+    source: build
+    build:
+      path: "../../frontend"   # path to your frontend Dockerfile
+    name: "{{ docker_username }}/{{ frontend_image }}"
+    tag: latest
+    push: yes
+
+- name: Build backend Docker image
+  community.docker.docker_image:
+    source: build
+    build:
+      path: "../../backend"   # path to your backend Dockerfile
+    name: "{{ docker_username }}/{{ backend_image }}"
+    tag: latest
+    push: yes

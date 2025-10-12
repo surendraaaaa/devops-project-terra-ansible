@@ -1,0 +1,6 @@
+- name: Apply all-in-one Kubernetes manifest
+  kubernetes.core.k8s:
+    kubeconfig: /home/n01521961/.kube/config
+    state: present
+    src: ../../k8s/all-in-one.yml # change it to your path
+
