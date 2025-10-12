@@ -1,0 +1,6 @@
+docker_username: "<your_dockerhub_username>"
+docker_password: "<your_dockerhub_password>"
+frontend_image: devops-terra-ansible-frontend
+backend_image: devops-terra-ansible-backend
+mongo_image: mongo:latest
+k8s_namespace: dev-terra-ansible
