@@ -15,17 +15,17 @@ jobs:
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
 
     steps:
-    # 1️⃣ Checkout repository
+    # Checkout repository
     - name: Checkout repo
       uses: actions/checkout@v3
 
-    # 2️⃣ Set up Terraform
+    # Set up Terraform
     - name: Set up Terraform
       uses: hashicorp/setup-terraform@v2
       with:
         terraform_version: 1.7.0
 
-    # 3️⃣ Set up Python & Ansible
+    # Set up Python & Ansible
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
@@ -37,25 +37,25 @@ jobs:
         pip install ansible
         ansible-galaxy collection install kubernetes.core
 
-    # 4️⃣ Destroy Terraform infrastructure
+    # Destroy Terraform infrastructure
     - name: Terraform Destroy (Dev)
       working-directory: ./terraform/environment/dev
       run: terraform destroy -auto-approve
 
 
-    # 5️⃣ Remove Kubernetes resources via Ansible
+    # Remove Kubernetes resources via Ansible
     - name: Clean K8s Resources
       run: |
         ansible-playbook ./ansible/playbooks/clean-env.yml -i ./ansible/inventories/dev/hosts.yml
 
-    # 6️⃣ Log in to Docker (if cleaning images)
+    # Log in to Docker (if cleaning images)
     - name: Docker Login
       uses: docker/login-action@v2
       with:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
 
-    # 7️⃣ Remove Docker containers & images
+    #  Remove Docker containers & images
     - name: Clean Docker
       run: |
         docker stop $(docker ps -aq) || true
