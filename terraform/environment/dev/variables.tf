@@ -4,4 +4,3 @@ variable "aws_region" {
 
 
 
-
