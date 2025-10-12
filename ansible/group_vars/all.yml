@@ -1,6 +1,17 @@
-docker_username: "<your_dockerhub_username>"
-docker_password: "<your_dockerhub_password>"
-frontend_image: devops-terra-ansible-frontend
-backend_image: devops-terra-ansible-backend
+# ansible/group_vars/all.yml
+# Non-sensitive defaults only. Safe to commit to GitHub.
+
+# Docker image names (tags optional)
+frontend_image: devops-terra-ansible-frontend:latest
+backend_image: devops-terra-ansible-backend:latest
 mongo_image: mongo:latest
+
+# Kubernetes namespace
 k8s_namespace: dev-terra-ansible
+
+# Docker credentials - leave blank here! GitHub Actions will inject them as secrets
+docker_username: ""       # use github-actions secret DOCKER_USERNAME to store your Docker Hub username
+docker_password: ""       # use github-actions secret DOCKER_PASSWORD to store your Docker Hub password or access token    
+
+# Optional: AWS region (used if you deploy to EKS)
+aws_region: us-east-2
