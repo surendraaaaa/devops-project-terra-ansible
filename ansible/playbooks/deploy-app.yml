@@ -1,15 +1,22 @@
 ---
+---
 - name: Full DevOps Automation - Node, Docker, Kubernetes
   hosts: all
   become: true
-  vars_files:
-    - ../group_vars/all.yml   # common variables
 
-  
+  vars_files:
+    - ../group_vars/all.yml  # common variables
+
   roles:
-    - { role: node-setup, tags: ['node-setup'] }
-    - { role: docker, tags: ['docker'] }
-    - { role: k8s, tags: ['k8s'] }
+    - role: node-setup
+      tags: ['node-setup']
+
+    - role: docker
+      tags: ['docker']
+
+    - role: k8s
+      tags: ['k8s']
+
   
   
   
