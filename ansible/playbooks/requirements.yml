@@ -1,0 +1,18 @@
+# ansible/playbooks/requirements.yml
+# List of roles to install via ansible-galaxy
+# Local custom role + common roles from Ansible Galaxy
+
+# ansible/playbooks/requirements.yml
+# All roles are local (no Galaxy download required)
+# yaml-language-server: $schema=https://galaxy.ansible.com/schema/requirements.json
+
+
+- src: ./roles/node-setup
+  name: node-setup
+
+- src: ./roles/docker
+  name: docker
+
+- src: ./roles/k8s
+  name: k8s
+

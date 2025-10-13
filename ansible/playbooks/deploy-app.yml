@@ -5,7 +5,15 @@
   vars_files:
     - ../group_vars/all.yml   # common variables
 
+  
   roles:
-    - node-setup     # install packages, Docker, Kubernetes tools
-    - docker         # build and push Docker images
-    - k8s            # deploy your all-in-one.yml manifest
+    - { role: node-setup, tags: ['node-setup'] }
+    - { role: docker, tags: ['docker'] }
+    - { role: k8s, tags: ['k8s'] }
+  
+  
+  
+  # roles:
+  #   - node-setup     # install packages, Docker, Kubernetes tools
+  #   - docker         # build and push Docker images
+  #   - k8s            # deploy your all-in-one.yml manifest

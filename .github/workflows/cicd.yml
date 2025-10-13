@@ -20,7 +20,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Terraform
+      - name: Set up Terraform (and configure CLI token for Terraform Cloud)
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.6.3
@@ -28,15 +28,15 @@ jobs:
 
       - name: Terraform Init
         working-directory: terraform/environment/dev
-        run: terraform init
+        run: terraform init -input=false
 
       - name: Terraform Plan
         working-directory: terraform/environment/dev
-        run: terraform plan -out=tfplan
+        run: terraform plan -out=tfplan -input=false
 
       - name: Terraform Apply
         working-directory: terraform/environment/dev
-        run: terraform apply -auto-approve tfplan
+        run: terraform apply -auto-approve tfplan -input=false
 
       - name: Output kubeconfig
         working-directory: terraform/environment/dev
@@ -88,21 +88,23 @@ jobs:
           name: kubeconfig
           path: ./kubeconfig
 
-      - name: Install Ansible & dependencies
+      - name: Install Ansible & Python deps
         run: |
           sudo apt update -y
           sudo apt install -y python3-pip sshpass
+          python3 -m pip install --upgrade pip
           pip3 install ansible boto3 kubernetes
 
-      - name: Run Ansible Playbook
+      - name: Run Ansible Playbook (apply k8s manifests only)
         env:
-            KUBECONFIG: ${{ github.workspace }}/kubeconfig/kubeconfig.yaml
+          KUBECONFIG: ${{ github.workspace }}/kubeconfig/kubeconfig.yaml
         run: |
-              ansible-galaxy install -r ansible/playbooks/requirements.yml -p ansible/playbooks/roles
-              ansible-playbook ansible/playbooks/deploy-app.yml -i ansible/inventories/dev/hosts.yml \
-                  -e "docker_username=$DOCKERHUB_USERNAME" \
-                  -e "docker_password=$DOCKERHUB_PASSWORD" \
-                  -e "aws_access_key_id=$AWS_ACCESS_KEY_ID" \
-                  -e "aws_secret_access_key=$AWS_SECRET_ACCESS_KEY" \
-                  -e "aws_region=$AWS_REGION"
-
+          # If your deploy-app.yml contains roles that install docker/node-setup,
+          # skip those when running in CI. Use --skip-tags on roles tagged "node-setup,docker"
+          ansible-playbook ansible/playbooks/deploy-app.yml -i ansible/inventories/dev/hosts.yml \
+            --skip-tags "node-setup,docker" \
+            -e "docker_username=${{ env.DOCKERHUB_USERNAME }}" \
+            -e "docker_password=${{ env.DOCKERHUB_PASSWORD }}" \
+            -e "aws_access_key_id=${{ env.AWS_ACCESS_KEY_ID }}" \
+            -e "aws_secret_access_key=${{ env.AWS_SECRET_ACCESS_KEY }}" \
+            -e "aws_region=${{ env.AWS_REGION }}"

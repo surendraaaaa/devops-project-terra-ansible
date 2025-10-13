@@ -1,69 +1,69 @@
 name: Destroy Infra & Clean Environment
 
 on:
-  workflow_dispatch: # manual trigger
+  workflow_dispatch:
 
 env:
-  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
-  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_KEY }}
-  AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
-  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-  DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   TF_API_TOKEN: ${{ secrets.TF_API_TOKEN }}
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+  DOCKERHUB_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
 
 jobs:
   destroy:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout repository
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      # 2️⃣ Set up Terraform
-      - name: Set up Terraform
+      - name: Set up Terraform (for Terraform Cloud)
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.7.0
           cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
 
-      # 3️⃣ Terraform init (required for Terraform Cloud)
-      - name: Terraform Init
+      - name: Terraform Init (required for Terraform Cloud)
         working-directory: terraform/environment/dev
-        run: terraform init
+        run: terraform init -input=false
 
-      # 4️⃣ Destroy Terraform infrastructure
       - name: Terraform Destroy
         working-directory: terraform/environment/dev
-        run: terraform destroy -auto-approve
+        run: terraform destroy -auto-approve -input=false
 
-      # 5️⃣ Set up Python & Ansible
-      - name: Set up Python
+      - name: Set up Python & Ansible
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
-      # 6️⃣ Install Ansible & Kubernetes collection
-      - name: Install Ansible & Kubernetes Collection
+      - name: Install Ansible & Kubernetes collection
         run: |
           python -m pip install --upgrade pip
-          pip install ansible
+          pip install ansible boto3 kubernetes
           ansible-galaxy collection install kubernetes.core
 
-      # 7️⃣ Remove Kubernetes resources via Ansible
-      - name: Clean K8s Resources
+      - name: Clean K8s Resources (optional)
+        env:
+          KUBECONFIG: ${{ github.workspace }}/kubeconfig/kubeconfig.yaml
         run: |
-          ansible-playbook ./ansible/playbooks/clean-env.yml -i ./ansible/inventories/dev/hosts.yml
+          # If you still have kubeconfig artifact, you can download it and clean.
+          # Otherwise this step may fail if cluster already destroyed - guard with || true
+          if [ -f ./kubeconfig/kubeconfig.yaml ]; then
+            ansible-playbook ./ansible/playbooks/clean-env.yml -i ./ansible/inventories/dev/hosts.yml \
+              -e "aws_region=${{ env.AWS_REGION }}" || true
+          else
+            echo "No kubeconfig found; cluster likely already destroyed."
+          fi
 
-      # 8️⃣ Log in to Docker
       - name: Docker Login
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # 9️⃣ Remove Docker containers & images
-      - name: Clean Docker
+      - name: Clean Docker on runner (best-effort)
         run: |
           docker stop $(docker ps -aq) || true
           docker rm $(docker ps -aq) || true
