@@ -106,6 +106,7 @@ jobs:
             # Skip roles for node-setup and docker since those are for initial setup
             ansible-playbook ansible/playbooks/deploy-app.yml \
               -i ansible/inventories/dev/hosts.yml \
+              --roles-path ansible/roles \
               --skip-tags "node-setup,docker" \
               -e "docker_username=${{ env.DOCKERHUB_USERNAME }}" \
               -e "docker_password=${{ env.DOCKERHUB_PASSWORD }}" \
