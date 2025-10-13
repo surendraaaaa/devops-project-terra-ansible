@@ -99,13 +99,13 @@ jobs:
         env:
           KUBECONFIG: ${{ github.workspace }}/kubeconfig/kubeconfig.yaml
         run: |
-          ansible-playbook ansible/playbooks/deploy-all.yml \
-            -i ansible/inventories/dev/hosts.yml \
-            --skip-tags "node-setup,docker" \
-            -e "docker_username=${{ env.DOCKERHUB_USERNAME }}" \
-            -e "docker_password=${{ env.DOCKERHUB_PASSWORD }}" \
-            -e "aws_access_key_id=${{ env.AWS_ACCESS_KEY_ID }}" \
-            -e "aws_secret_access_key=${{ env.AWS_SECRET_ACCESS_KEY }}" \
-            -e "aws_region=${{ env.AWS_REGION }}"
+            # Skip roles for node-setup and docker since those are for initial setup
+            ansible-playbook deploy-all.yml \
+              --skip-tags "node-setup,docker" \
+              -e "docker_username=${{ env.DOCKERHUB_USERNAME }}" \
+              -e "docker_password=${{ env.DOCKERHUB_PASSWORD }}" \
+              -e "aws_access_key_id=${{ env.AWS_ACCESS_KEY_ID }}" \
+              -e "aws_secret_access_key=${{ env.AWS_SECRET_ACCESS_KEY }}" \
+              -e "aws_region=${{ env.AWS_REGION }}"
 
 
