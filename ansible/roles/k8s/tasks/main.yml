@@ -14,7 +14,7 @@
   kubernetes.core.k8s:
     kubeconfig: "{{ lookup('env', 'KUBECONFIG') }}"
     state: present
-    src: "{{ playbook_dir }}/../../k8s/all-in-one.yml"
+    src: "{{ lookup('file', 'k8s/all-in-one.yml') }}"
 
 
 
