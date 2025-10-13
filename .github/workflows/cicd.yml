@@ -36,7 +36,7 @@ jobs:
 
       - name: Terraform Apply
         working-directory: terraform/environment/dev
-        run: terraform apply -auto-approve tfplan -input=false
+        run: terraform apply -input=false -auto-approve tfplan
 
       - name: Output kubeconfig
         working-directory: terraform/environment/dev
