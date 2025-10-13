@@ -74,7 +74,7 @@ jobs:
           docker push $DOCKERHUB_USERNAME/devops-terra-ansible-backend:latest
 
   ansible_deploy:
-    name: Ansible Deploy to EKS
+    name: Ansible Deploy to EKS cluster
     runs-on: ubuntu-latest
     needs: docker_build
 
@@ -98,21 +98,25 @@ jobs:
       - name: Ensure playbook exists
         run: test -f ansible/playbooks/deploy-app.yml
 
+      - name: Print Ansible version and config
+        run: |
+          ansible --version
+          ansible-config dump
+
+      - name: List inventory hosts
+        run: |
+          ansible-inventory -i ansible/inventories/dev/hosts.yml --list
+
       - name: Run Ansible Playbook (apply k8s manifests only)
         env:
           KUBECONFIG: ${{ github.workspace }}/kubeconfig/kubeconfig.yaml
           ANSIBLE_CONFIG: ${{ github.workspace }}/ansible/ansible.cfg
         run: |
-            # Skip roles for node-setup and docker since those are for initial setup
-            ansible-playbook ansible/playbooks/deploy-app.yml \
-              -i ansible/inventories/dev/hosts.yml \
-              --roles-path ansible/roles \
-              --skip-tags "node-setup,docker" \
-              -e "docker_username=${{ env.DOCKERHUB_USERNAME }}" \
-              -e "docker_password=${{ env.DOCKERHUB_PASSWORD }}" \
-              -e "aws_access_key_id=${{ env.AWS_ACCESS_KEY_ID }}" \
-              -e "aws_secret_access_key=${{ env.AWS_SECRET_ACCESS_KEY }}" \
-              -e "aws_region=${{ env.AWS_REGION }}"
-
-
-
+          ansible-playbook ansible/playbooks/deploy-app.yml \
+            --skip-tags "node-setup,docker" \
+            -e "docker_username=${{ env.DOCKERHUB_USERNAME }}" \
+            -e "docker_password=${{ env.DOCKERHUB_PASSWORD }}" \
+            -e "aws_access_key_id=${{ env.AWS_ACCESS_KEY_ID }}" \
+            -e "aws_secret_access_key=${{ env.AWS_SECRET_ACCESS_KEY }}" \
+            -e "aws_region=${{ env.AWS_REGION }}" \
+            -vvv
