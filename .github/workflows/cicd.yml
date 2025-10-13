@@ -100,7 +100,8 @@ jobs:
           KUBECONFIG: ${{ github.workspace }}/kubeconfig/kubeconfig.yaml
         run: |
             # Skip roles for node-setup and docker since those are for initial setup
-            ansible-playbook deploy-all.yml \
+            ansible-playbook ansible/playbooks/deploy-all.yml \
+              -i ansible/inventories/dev/hosts.yml \
               --skip-tags "node-setup,docker" \
               -e "docker_username=${{ env.DOCKERHUB_USERNAME }}" \
               -e "docker_password=${{ env.DOCKERHUB_PASSWORD }}" \
