@@ -94,13 +94,14 @@ jobs:
           sudo apt install -y python3-pip sshpass
           python3 -m pip install --upgrade pip
           pip3 install ansible boto3 kubernetes
-          
+
       - name: Ensure playbook exists
         run: test -f ansible/playbooks/deploy-app.yml
 
       - name: Run Ansible Playbook (apply k8s manifests only)
         env:
           KUBECONFIG: ${{ github.workspace }}/kubeconfig/kubeconfig.yaml
+          ANSIBLE_CONFIG: ${{ github.workspace }}/ansible/ansible.cfg
         run: |
             # Skip roles for node-setup and docker since those are for initial setup
             ansible-playbook ansible/playbooks/deploy-app.yml \
@@ -111,5 +112,6 @@ jobs:
               -e "aws_access_key_id=${{ env.AWS_ACCESS_KEY_ID }}" \
               -e "aws_secret_access_key=${{ env.AWS_SECRET_ACCESS_KEY }}" \
               -e "aws_region=${{ env.AWS_REGION }}"
+
 
 
