@@ -109,14 +109,14 @@ jobs:
 
       - name: Run Ansible Playbook (apply k8s manifests only)
         env:
-          KUBECONFIG: ${{ github.workspace }}/kubeconfig/kubeconfig.yaml
-          ANSIBLE_CONFIG: ${{ github.workspace }}/ansible/ansible.cfg
+           KUBECONFIG: ${{ github.workspace }}/kubeconfig/kubeconfig.yaml
+            ANSIBLE_CONFIG: ${{ github.workspace }}/ansible/ansible.cfg
         run: |
-          ansible-playbook ansible/playbooks/deploy-app.yml \
-            --skip-tags "node-setup,docker" \
-            -e "docker_username=${{ env.DOCKERHUB_USERNAME }}" \
-            -e "docker_password=${{ env.DOCKERHUB_PASSWORD }}" \
-            -e "aws_access_key_id=${{ env.AWS_ACCESS_KEY_ID }}" \
-            -e "aws_secret_access_key=${{ env.AWS_SECRET_ACCESS_KEY }}" \
-            -e "aws_region=${{ env.AWS_REGION }}" \
-            -vvv
+            ansible-playbook ansible/playbooks/deploy-app.yml \
+              -e docker_username=${{ env.DOCKERHUB_USERNAME }} \
+              -e docker_password=${{ env.DOCKERHUB_PASSWORD }} \
+              -e aws_access_key_id=${{ env.AWS_ACCESS_KEY_ID }} \
+              -e aws_secret_access_key=${{ env.AWS_SECRET_ACCESS_KEY }} \
+              -e aws_region=${{ env.AWS_REGION }} \
+              -vvv
+
