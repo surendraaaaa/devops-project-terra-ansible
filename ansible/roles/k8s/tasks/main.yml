@@ -18,7 +18,7 @@
 
 - name: Check that manifest exists
   stat:
-    path: "{{ ansible_env.PWD }}/ansible/k8s/all-in-one.yml"
+    src: "ansible/k8s/all-in-one.yml"
   register: manifest_stat
 
 - name: Debug manifest_stat
@@ -27,14 +27,14 @@
 
 - name: Fail if manifest not found
   fail:
-    msg: "Manifest file not found at {{ ansible_env.PWD }}/ansible/k8s/all-in-one.yml"
+    msg: "Manifest file not found at "ansible/k8s/all-in-one.yml""
   when: not manifest_stat.stat.exists
 
 - name: Apply all-in-one Kubernetes manifest to EKS
   kubernetes.core.k8s:
     kubeconfig: "{{ lookup('env', 'KUBECONFIG') }}"
     state: present
-    src: "{{ ansible_env.PWD }}/ansible/k8s/all-in-one.yml"
+    src: "ansible/k8s/all-in-one.yml"
   register: apply_result
 
 - name: Debug result of apply
