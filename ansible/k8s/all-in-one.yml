@@ -1,0 +1,196 @@
+---
+kind: Namespace
+apiVersion: v1
+metadata:
+  name: dev-terra-ansible
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata: 
+  name: dev-terra-ansible-pv
+  namespace: dev-terra-ansible
+spec: 
+  capacity:
+    storage: 2Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: gp2
+  hostPath: 
+    path: /data/db
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: 
+  name: dev-terra-ansible-pvc
+  namespace: dev-terra-ansible
+spec: 
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: 
+  name: mongo-deployment
+  namespace: dev-terra-ansible
+  labels: 
+    app: mongo
+spec: 
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongo
+  template:
+    metadata:
+      labels:
+        app: mongo
+    spec:
+      containers:
+      - name: mongo
+        image: mongo:latest
+        ports:
+        - containerPort: 27017
+        volumeMounts:
+        - mountPath: /data/db
+          name: mongo-persistent-storage
+      volumes:
+      - name: mongo-persistent-storage
+        persistentVolumeClaim:
+          claimName: dev-terra-ansible-pvc
+      
+---
+apiVersion: v1
+kind: Service
+metadata: 
+  name: mongo-service
+  namespace: dev-terra-ansible
+spec: 
+  selector:
+    app: mongo
+  ports:
+  - protocol: TCP
+    port: 27017
+    targetPort: 27017
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: 
+  name: backend-deployment
+  namespace: dev-terra-ansible
+  labels:
+    app: backend-app
+  
+
+spec: 
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend-app
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: backend-app
+    spec:
+      containers:
+      - name: backend-app
+        image: surendraprajapati/devops-terra-ansible-backend:latest
+        ports:
+        - containerPort: 5000
+        env:
+        - name: MONGO_URL
+          value: mongodb://mongo-service:27017/mydb
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "250m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+
+---
+apiVersion: v1
+kind: Service
+metadata: 
+  name: backend-service
+  namespace: dev-terra-ansible
+spec: 
+  selector:
+    app: backend-app
+  type: NodePort
+  ports:
+  - name: backend-port
+    protocol: TCP
+    port: 5000
+    targetPort: 5000
+    nodePort: 30900
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name:  frontend-deployment
+  namespace: dev-terra-ansible
+  labels:
+    app:  frontend-app
+spec:
+  selector:
+    matchLabels:
+      app: frontend-app
+  replicas: 1
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app:  frontend-app
+    spec:
+      containers:
+      - name:  frontend-app
+        image: surendraprajapati/devops-terra-ansible-frontend:latest
+        ports:
+        - containerPort:  3000
+        env:
+        - name: BACKEND_URL
+          value: http://backend-service:5000/api/tasks
+         
+       # resources:
+        #  requests:
+         #   memory: "128Mi"
+          #  cpu: "250m"
+         # limits:
+          #  memory: "256Mi"
+          #  cpu: "500m"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+  namespace: dev-terra-ansible
+spec:
+  selector:
+    app: frontend-app
+  type: NodePort
+  sessionAffinity: None
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
+  ports:
+  - name: frontend-app
+    protocol: TCP
+    port: 3000
+    targetPort: 3000
+    nodePort: 30800
+
+        
+ 
