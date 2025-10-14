@@ -5,20 +5,56 @@
 
 - name: Fail if kubeconfig is missing
   fail:
-    msg: "Kubeconfig file not found! Ensure Terraform job outputs kubeconfig correctly."
+    msg: "Kubeconfig file not found at {{ lookup('env', 'KUBECONFIG') }}"
   when: not kubeconfig_status.stat.exists
 
-- name: Debug information
+- name: Debug working directory and file presence
   debug:
     msg:
-      - "Current working dir: {{ ansible_env.PWD }}"
-      - "KUBECONFIG: {{ lookup('env', 'KUBECONFIG') }}"
-      - "Does manifest exist? -> {{ lookup('file', ansible_env.PWD ~ '/ansible/k8s/all-in-one.yml') | default('notfound') }}"
+      - "Working directory: {{ ansible_env.PWD }}"
+      - "Kubeconfig: {{ lookup('env', 'KUBECONFIG') }}"
+      - "Manifest path: {{ ansible_env.PWD }}/ansible/k8s/all-in-one.yml"
+      - "File exists? => {{ (ansible_env.PWD ~ '/ansible/k8s/all-in-one.yml') | path_exists }}"
 
 - name: Apply all-in-one Kubernetes manifest to EKS
   kubernetes.core.k8s:
     kubeconfig: "{{ lookup('env', 'KUBECONFIG') }}"
     state: present
     src: "{{ ansible_env.PWD }}/ansible/k8s/all-in-one.yml"
+  register: k8s_apply
+  retries: 2
+  delay: 5
+  until: k8s_apply.changed or k8s_apply.failed
+
+
+
+
+
+
+
+
+
+# - name: Verify kubeconfig file exists
+#   stat:
+#     path: "{{ lookup('env', 'KUBECONFIG') }}"
+#   register: kubeconfig_status
+
+# - name: Fail if kubeconfig is missing
+#   fail:
+#     msg: "Kubeconfig file not found! Ensure Terraform job outputs kubeconfig correctly."
+#   when: not kubeconfig_status.stat.exists
+
+# - name: Debug information
+#   debug:
+#     msg:
+#       - "Current working dir: {{ ansible_env.PWD }}"
+#       - "KUBECONFIG: {{ lookup('env', 'KUBECONFIG') }}"
+#       - "Does manifest exist? -> {{ lookup('file', ansible_env.PWD ~ '/ansible/k8s/all-in-one.yml') | default('notfound') }}"
+
+# - name: Apply all-in-one Kubernetes manifest to EKS
+#   kubernetes.core.k8s:
+#     kubeconfig: "{{ lookup('env', 'KUBECONFIG') }}"
+#     state: present
+#     src: "{{ ansible_env.PWD }}/ansible/k8s/all-in-one.yml"
 
 
