@@ -48,6 +48,9 @@ jobs:
           name: kubeconfig
           path: terraform/environment/dev/kubeconfig.yaml
 
+      - name: Verify kubeconfig exists
+        run: test -f terraform/environment/dev/kubeconfig.yaml
+
   docker_build:
     name: Docker Build & Push
     runs-on: ubuntu-latest
@@ -79,63 +82,72 @@ jobs:
     needs: docker_build
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Download kubeconfig
-      uses: actions/download-artifact@v4
-      with:
-        name: kubeconfig
-        path: ./kubeconfig
+      - name: Download kubeconfig
+        uses: actions/download-artifact@v4
+        with:
+          name: kubeconfig
+          path: ./kubeconfig
 
-    - name: Install Ansible & Python deps
-      run: |
-        sudo apt update -y
-        sudo apt install -y python3-pip sshpass curl
-        python3 -m pip install --upgrade pip
-        pip3 install ansible boto3 kubernetes
-        ansible-galaxy collection install kubernetes.core
+      - name: Verify kubeconfig download
+        run: |
+          echo "Checking if kubeconfig exists at ./kubeconfig/kubeconfig.yaml"
+          if [ -f ./kubeconfig/kubeconfig.yaml ]; then
+            echo "Kubeconfig file found!"
+            head -n 10 ./kubeconfig/kubeconfig.yaml
+          else
+            echo "Kubeconfig file NOT found!"
+            exit 1
+          fi
 
-    - name: Ensure playbook exists
-      run: test -f ansible/playbooks/deploy-app.yml
+      - name: Install Ansible & Python deps
+        run: |
+          sudo apt update -y
+          sudo apt install -y python3-pip sshpass curl
+          python3 -m pip install --upgrade pip
+          pip3 install ansible boto3 kubernetes
+          ansible-galaxy collection install kubernetes.core
 
-    - name: List ansible directory and Kubernetes manifest
-      run: |
-        echo "Listing ansible directory:"
-        ls -lR ansible/
-        echo "Check if Kubernetes manifest exists:"
-        test -f ansible/k8s/all-in-one.yml
+      - name: Ensure playbook exists
+        run: test -f ansible/playbooks/deploy-app.yml
 
-    - name: Print Ansible version and config
-      run: |
-        ansible --version
-        ansible-config dump
+      - name: List ansible directory and Kubernetes manifest
+        run: |
+          echo "Listing ansible directory:"
+          ls -lR ansible/
+          echo "Check if Kubernetes manifest exists:"
+          test -f ansible/k8s/all-in-one.yml
 
-    - name: Run Ansible Playbook (apply k8s manifests only)
-      env:
-        KUBECONFIG: ${{ github.workspace }}/kubeconfig/kubeconfig.yaml
-        ANSIBLE_CONFIG: ${{ github.workspace }}/ansible/ansible.cfg
-      run: |
-        ansible-playbook ansible/playbooks/deploy-app.yml \
-          -i ansible/inventories/dev/hosts.yml \
-          -e docker_username=${{ env.DOCKERHUB_USERNAME }} \
-          -e docker_password=${{ env.DOCKERHUB_PASSWORD }} \
-          -e aws_access_key_id=${{ env.AWS_ACCESS_KEY_ID }} \
-          -e aws_secret_access_key=${{ env.AWS_SECRET_ACCESS_KEY }} \
-          -e aws_region=${{ env.AWS_REGION }} \
-          -vvv
+      - name: Print Ansible version and config
+        run: |
+          ansible --version
+          ansible-config dump
 
-    - name: Install kubectl CLI
-      run: |
-        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-        chmod +x kubectl
-        sudo mv kubectl /usr/local/bin/
+      - name: Run Ansible Playbook (apply k8s manifests only)
+        env:
+          KUBECONFIG: ${{ github.workspace }}/kubeconfig/kubeconfig.yaml
+          ANSIBLE_CONFIG: ${{ github.workspace }}/ansible/ansible.cfg
+        run: |
+          cd ansible && \
+          ansible-playbook playbooks/deploy-app.yml \
+            -i inventories/dev/hosts.yml \
+            -e docker_username=${{ env.DOCKERHUB_USERNAME }} \
+            -e docker_password=${{ env.DOCKERHUB_PASSWORD }} \
+            -e aws_access_key_id=${{ env.AWS_ACCESS_KEY_ID }} \
+            -e aws_secret_access_key=${{ env.AWS_SECRET_ACCESS_KEY }} \
+            -e aws_region=${{ env.AWS_REGION }} \
+            -vvv
 
-    - name: Verify deployed Kubernetes resources
-      env:
-        KUBECONFIG: ${{ github.workspace }}/kubeconfig/kubeconfig.yaml
-      run: |
-        kubectl get all --all-namespaces || echo "No Kubernetes resources found"
+      - name: Install kubectl CLI
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
 
-
-
+      - name: Verify deployed Kubernetes resources
+        env:
+          KUBECONFIG: ${{ github.workspace }}/kubeconfig/kubeconfig.yaml
+        run: |
+          kubectl get all --all-namespaces || echo "No Kubernetes resources found"
