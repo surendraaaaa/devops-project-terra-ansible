@@ -1,20 +1,24 @@
 - name: Verify kubeconfig file exists
   stat:
-      path: "{{ lookup('env', 'KUBECONFIG') }}"
-      register: kubeconfig_status
+    path: "{{ lookup('env', 'KUBECONFIG') }}"
+  register: kubeconfig_status
 
 - name: Fail if kubeconfig is missing
   fail:
-      msg: "Kubeconfig file not found! Ensure Terraform job outputs kubeconfig correctly."
-      when: not kubeconfig_status.stat.exists
+    msg: "Kubeconfig file not found! Ensure Terraform job outputs kubeconfig correctly."
+  when: not kubeconfig_status.stat.exists
 
-
+- name: Debug information
+  debug:
+    msg:
+      - "Current working dir: {{ ansible_env.PWD }}"
+      - "KUBECONFIG: {{ lookup('env', 'KUBECONFIG') }}"
+      - "Does manifest exist? -> {{ lookup('file', ansible_env.PWD ~ '/ansible/k8s/all-in-one.yml') | default('notfound') }}"
 
 - name: Apply all-in-one Kubernetes manifest to EKS
   kubernetes.core.k8s:
     kubeconfig: "{{ lookup('env', 'KUBECONFIG') }}"
     state: present
-    src: "{{ ansible_env.PWD }}/k8s/all-in-one.yml"
-
+    src: "{{ ansible_env.PWD }}/ansible/k8s/all-in-one.yml"
 
 
