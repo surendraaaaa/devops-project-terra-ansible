@@ -79,44 +79,43 @@ jobs:
     needs: docker_build
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Download kubeconfig
-        uses: actions/download-artifact@v4
-        with:
-          name: kubeconfig
-          path: ./kubeconfig
+    - name: Download kubeconfig
+      uses: actions/download-artifact@v4
+      with:
+        name: kubeconfig
+        path: ./kubeconfig
 
-      - name: Install Ansible & Python deps
-        run: |
-          sudo apt update -y
-          sudo apt install -y python3-pip sshpass
-          python3 -m pip install --upgrade pip
-          pip3 install ansible boto3 kubernetes
+    - name: Install Ansible & Python deps
+      run: |
+        sudo apt update -y
+        sudo apt install -y python3-pip sshpass
+        python3 -m pip install --upgrade pip
+        pip3 install ansible boto3 kubernetes
+        ansible-galaxy collection install kubernetes.core
 
-      - name: Ensure playbook exists
-        run: test -f ansible/playbooks/deploy-app.yml
+    - name: Ensure playbook exists
+      run: test -f ansible/playbooks/deploy-app.yml
 
-      - name: Print Ansible version and config
-        run: |
-          ansible --version
-          ansible-config dump
+    - name: Print Ansible version and config
+      run: |
+        ansible --version
+        ansible-config dump
 
-      - name: List inventory hosts
-        run: |
-          ansible-inventory -i ansible/inventories/dev/hosts.yml --list
+    - name: Run Ansible Playbook (apply k8s manifests only)
+      env:
+        KUBECONFIG: ${{ github.workspace }}/kubeconfig/kubeconfig.yaml
+        ANSIBLE_CONFIG: ${{ github.workspace }}/ansible/ansible.cfg
+      run: |
+        ansible-playbook ansible/playbooks/deploy-app.yml \
+          -i ansible/inventories/dev/hosts.yml \
+          -e docker_username=${{ env.DOCKERHUB_USERNAME }} \
+          -e docker_password=${{ env.DOCKERHUB_PASSWORD }} \
+          -e aws_access_key_id=${{ env.AWS_ACCESS_KEY_ID }} \
+          -e aws_secret_access_key=${{ env.AWS_SECRET_ACCESS_KEY }} \
+          -e aws_region=${{ env.AWS_REGION }} \
+          -vvv
 
-      - name: Run Ansible Playbook (apply k8s manifests only)
-        env:
-           KUBECONFIG: ${{ github.workspace }}/kubeconfig/kubeconfig.yaml
-           ANSIBLE_CONFIG: ${{ github.workspace }}/ansible/ansible.cfg
-        run: |
-            ansible-playbook ansible/playbooks/deploy-app.yml \
-              -e docker_username=${{ env.DOCKERHUB_USERNAME }} \
-              -e docker_password=${{ env.DOCKERHUB_PASSWORD }} \
-              -e aws_access_key_id=${{ env.AWS_ACCESS_KEY_ID }} \
-              -e aws_secret_access_key=${{ env.AWS_SECRET_ACCESS_KEY }} \
-              -e aws_region=${{ env.AWS_REGION }} \
-              -vvv
 
