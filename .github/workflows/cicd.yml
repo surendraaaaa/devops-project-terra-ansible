@@ -91,13 +91,20 @@ jobs:
     - name: Install Ansible & Python deps
       run: |
         sudo apt update -y
-        sudo apt install -y python3-pip sshpass
+        sudo apt install -y python3-pip sshpass curl
         python3 -m pip install --upgrade pip
         pip3 install ansible boto3 kubernetes
         ansible-galaxy collection install kubernetes.core
 
     - name: Ensure playbook exists
       run: test -f ansible/playbooks/deploy-app.yml
+
+    - name: List ansible directory and Kubernetes manifest
+      run: |
+        echo "Listing ansible directory:"
+        ls -lR ansible/
+        echo "Check if Kubernetes manifest exists:"
+        test -f ansible/k8s/all-in-one.yml
 
     - name: Print Ansible version and config
       run: |
@@ -117,5 +124,18 @@ jobs:
           -e aws_secret_access_key=${{ env.AWS_SECRET_ACCESS_KEY }} \
           -e aws_region=${{ env.AWS_REGION }} \
           -vvv
+
+    - name: Install kubectl CLI
+      run: |
+        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        chmod +x kubectl
+        sudo mv kubectl /usr/local/bin/
+
+    - name: Verify deployed Kubernetes resources
+      env:
+        KUBECONFIG: ${{ github.workspace }}/kubeconfig/kubeconfig.yaml
+      run: |
+        kubectl get all --all-namespaces || echo "No Kubernetes resources found"
+
 
 
