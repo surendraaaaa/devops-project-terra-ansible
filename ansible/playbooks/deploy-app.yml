@@ -8,8 +8,82 @@
   vars_files:
     - ../group_vars/all.yml  # common variables
 
-  roles:
-    - role: k8s
+  tasks:
+    - name: DEBUG — entering k8s role
+      debug:
+        msg:
+          - "DEBUG: Starting k8s role"
+          - "PWD: {{ ansible_env.PWD }}"
+          - "List files in PWD:"
+
+    - name: List files in working directory
+      command: ls -R "{{ ansible_env.PWD }}"
+      register: tree
+
+    - name: Show ls output
+      debug:
+        var: tree.stdout_lines
+
+    - name: DEBUG — KUBECONFIG environment
+      debug:
+        msg: "KUBECONFIG: {{ lookup('env', 'KUBECONFIG') }}"
+
+    - name: Check that manifest exists
+      stat:
+        path: ansible/k8s/all-in-one.yml   # ✅ use "path", not "src"
+      register: manifest_stat
+
+    - name: Debug manifest_stat
+      debug:
+        var: manifest_stat
+
+    - name: Fail if manifest not found
+      fail:
+        msg: "Manifest file not found at ansible/k8s/all-in-one.yml"
+      when: not manifest_stat.stat.exists  # ✅ fixed condition syntax
+
+    - name: Apply all-in-one Kubernetes manifest to EKS
+      kubernetes.core.k8s:
+        kubeconfig: "{{ lookup('env', 'KUBECONFIG') }}"
+        state: present
+        src: ansible/k8s/all-in-one.yml
+      register: apply_result
+
+    - name: Debug result of apply
+      debug:
+        var: apply_result
+
+
+
+
+
+
+
+
+# - name: Verify kubeconfig file exists
+#   stat:
+#     path: "{{ lookup('env', 'KUBECONFIG') }}"
+#   register: kubeconfig_status
+
+# - name: Fail if kubeconfig is missing
+#   fail:
+#     msg: "Kubeconfig file not found! Ensure Terraform job outputs kubeconfig correctly."
+#   when: not kubeconfig_status.stat.exists
+
+# - name: Debug information
+#   debug:
+#     msg:
+#       - "Current working dir: {{ ansible_env.PWD }}"
+#       - "KUBECONFIG: {{ lookup('env', 'KUBECONFIG') }}"
+#       - "Does manifest exist? -> {{ lookup('file', ansible_env.PWD ~ '/ansible/k8s/all-in-one.yml') | default('notfound') }}"
+
+# - name: Apply all-in-one Kubernetes manifest to EKS
+#   kubernetes.core.k8s:
+#     kubeconfig: "{{ lookup('env', 'KUBECONFIG') }}"
+#     state: present
+#     src: "{{ ansible_env.PWD }}/ansible/k8s/all-in-one.yml"
+
+
       
 
 
