@@ -4,13 +4,13 @@ module "vpc" {
   cidr_block           = "10.0.0.0/16"
   public_subnet_cidrs  = ["10.0.1.0/24", "10.0.2.0/24"]
   private_subnet_cidrs = ["10.0.3.0/24", "10.0.4.0/24"]
-  az                   = ["us-east-1a", "us-east-1b"]
+  az                   = ["us-east-2a", "us-east-2b"]
   vpc_name             = "eks-vpc-${var.environment}"
   cluster_name         = "my-eks-cluster-${var.environment}"
   sg_name              = "eks-sg-${var.environment}"
   igw_name             = "eks-igw-${var.environment}"
   rt_name              = "eks-rt-${var.environment}"
-
+  create_nat_gateway   = false
   tags = {
     Environment = var.environment
     Terraform   = "true"
@@ -28,7 +28,7 @@ module "eks" {
   node_desired_size   = 2
   node_max_size       = 4
   node_min_size       = 1
-  node_instance_types = ["t3.medium"]
+  node_instance_types = ["t3.small"]
 
   tags = {
     Environment = var.environment
@@ -44,3 +44,4 @@ module "ec2" {
   subnet_id         = module.vpc.public_subnet_ids[0]
   security_group_id = module.vpc.security_group_id
 }
+
