@@ -1,14 +1,4 @@
-module "vpc" {
-  source      = "../../modules/vpc"
-  cidr_block  = "10.0.0.0/16"
-  subnet_cidr = ["10.0.1.0/24", "10.0.2.0/24"]
-  az          = ["us-east-2a", "us-east-2b"]
-  vpc_name    = "dev-vpc"
-  subnet_name = ["dev_subnet_a", "dev_subnet_b"]
-  sg_name     = "dev-sg"
-  igw_name    = "dev-igw"
-  rt_name     = "dev-rt"
-}
+
 
 module "ec2" {
   source            = "../../modules/ec2"
@@ -18,6 +8,25 @@ module "ec2" {
   subnet_id         = module.vpc.subnet_ids[0]
   security_group_id = module.vpc.security_group_id
 
+}
+
+odule "vpc" {
+  source = "../../modules/vpc"
+
+  cidr_block           = "10.0.0.0/16"
+  public_subnet_cidrs  = ["10.0.1.0/24", "10.0.2.0/24"]
+  private_subnet_cidrs = ["10.0.3.0/24", "10.0.4.0/24"]
+  az                   = ["us-east-1a", "us-east-1b"]
+  vpc_name             = "eks-vpc-${var.environment}"
+  cluster_name         = "my-eks-cluster-${var.environment}"
+  sg_name              = "eks-sg-${var.environment}"
+  igw_name             = "eks-igw-${var.environment}"
+  rt_name              = "eks-rt-${var.environment}"
+
+  tags = {
+    Environment = var.environment
+    Terraform   = "true"
+  }
 }
 
 module "eks" {
@@ -38,7 +47,7 @@ module "eks" {
     Terraform   = "true"
   }
 }
-
   
+
 
 
