@@ -3,113 +3,124 @@
 ##########################
 
 resource "aws_vpc" "my_vpc" {
-  cidr_block       = var.cidr_block
-  instance_tenancy = "default"
+  cidr_block           = var.cidr_block
+  instance_tenancy     = "default"
+  enable_dns_hostnames = true
+  enable_dns_support   = true
 
   tags = {
-    Name = var.vpc_name
+    Name                                        = var.vpc_name
+    "kubernetes.io/cluster/${var.cluster_name}" = "shared"
   }
 }
 
 ##########################
-#        subnet Setup       #
+#     Public Subnets     #
 ##########################
 
-resource "aws_subnet" "my_subnet" {
-  count = length(var.subnet_cidr)
+resource "aws_subnet" "public_subnets" {
+  count = length(var.public_subnet_cidrs)
 
   vpc_id                  = aws_vpc.my_vpc.id
-  cidr_block              = var.subnet_cidr[count.index]
+  cidr_block              = var.public_subnet_cidrs[count.index]
   availability_zone       = var.az[count.index]
   map_public_ip_on_launch = true
 
+  tags = merge(
+    {
+      Name                                        = "${var.vpc_name}-public-${var.az[count.index]}"
+      "kubernetes.io/cluster/${var.cluster_name}" = "shared"
+      "kubernetes.io/role/elb"                    = "1"
+    },
+    var.tags
+  )
+}
+
+##########################
+#    Private Subnets     #
+##########################
+
+resource "aws_subnet" "private_subnets" {
+  count = length(var.private_subnet_cidrs)
+
+  vpc_id                  = aws_vpc.my_vpc.id
+  cidr_block              = var.private_subnet_cidrs[count.index]
+  availability_zone       = var.az[count.index]
+  map_public_ip_on_launch = false
+
+  tags = merge(
+    {
+      Name                                        = "${var.vpc_name}-private-${var.az[count.index]}"
+      "kubernetes.io/cluster/${var.cluster_name}" = "shared"
+      "kubernetes.io/role/internal-elb"           = "1"
+    },
+    var.tags
+  )
+}
+
+##########################
+#    NAT Gateway Setup   #
+##########################
+
+resource "aws_eip" "nat" {
+  domain = "vpc"
   tags = {
-    Name = var.subnet_name[count.index]
+    Name = "${var.vpc_name}-nat-eip"
   }
 }
 
+resource "aws_nat_gateway" "nat" {
+  allocation_id = aws_eip.nat.id
+  subnet_id     = aws_subnet.public_subnets[0].id
+
+  tags = {
+    Name = "${var.vpc_name}-nat"
+  }
+
+  depends_on = [aws_internet_gateway.my_igw]
+}
 
 ##########################
-#        SG Setup       #
+#        SG Setup        #
 ##########################
 
 resource "aws_security_group" "my_sg" {
   vpc_id      = aws_vpc.my_vpc.id
   name        = var.sg_name
-  description = "this is my security group for the devops project"
+  description = "Security group for the DevOps project and EKS cluster"
 
   tags = {
     Name = var.sg_name
   }
 
-  ingress {
-    cidr_blocks = ["0.0.0.0/0"]
-    from_port   = 443
-    protocol    = "tcp"
-    to_port     = 443
+  # Standard ports
+  dynamic "ingress" {
+    for_each = [22, 80, 443, 8080, 9000, 3000, 5000]
+    content {
+      from_port   = ingress.value
+      to_port     = ingress.value
+      protocol    = "tcp"
+      cidr_blocks = ["0.0.0.0/0"]
+    }
   }
 
-  ingress {
-    cidr_blocks = ["0.0.0.0/0"]
-    from_port   = 80
-    protocol    = "tcp"
-    to_port     = 80
+  # EKS required ports
+  dynamic "ingress" {
+    for_each = [6443, 2379, 2380, 10250, 10257, 10259]
+    content {
+      from_port = ingress.value
+      to_port   = ingress.value
+      protocol  = "tcp"
+      self      = true
+    }
   }
 
+  # NodePort Services
   ingress {
-    cidr_blocks = ["0.0.0.0/0"]
-    from_port   = 22
-    protocol    = "tcp"
-    to_port     = 22
-  }
-
-  ingress {
-    cidr_blocks = ["0.0.0.0/0"]
-    from_port   = 8080
-    protocol    = "tcp"
-    to_port     = 8080
-  }
-
-  ingress {
-    cidr_blocks = ["0.0.0.0/0"]
-    from_port   = 9000
-    protocol    = "tcp"
-    to_port     = 9000
-  }
-
-  ingress {
-    cidr_blocks = ["0.0.0.0/0"]
-    from_port   = 3000
-    protocol    = "tcp"
-    to_port     = 3000
-  }
-
-  ingress {
-    cidr_blocks = ["0.0.0.0/0"]
-    from_port   = 5000
-    protocol    = "tcp"
-    to_port     = 5000
-  }
-
-  ingress {
-    cidr_blocks = ["0.0.0.0/0"]
-    from_port   = 27017
-    protocol    = "tcp"
-    to_port     = 27017
-  }
-
-  ingress {
-    cidr_blocks = ["0.0.0.0/0"]
-    from_port   = 6443
-    protocol    = "tcp"
-    to_port     = 6443
-  }
-
-  ingress {
-    cidr_blocks = ["0.0.0.0/0"]
     from_port   = 30000
-    protocol    = "tcp"
     to_port     = 32767
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
@@ -118,12 +129,12 @@ resource "aws_security_group" "my_sg" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
 }
 
 ##########################
 #        IGW Setup       #
 ##########################
+
 resource "aws_internet_gateway" "my_igw" {
   vpc_id = aws_vpc.my_vpc.id
   tags = {
@@ -132,31 +143,40 @@ resource "aws_internet_gateway" "my_igw" {
 }
 
 ##########################
-#        RT Setup       #
+#        RT Setup        #
 ##########################
 
-resource "aws_route_table" "my_public_rt" {
+# Public Route Table
+resource "aws_route_table" "public_rt" {
   vpc_id = aws_vpc.my_vpc.id
-  tags   = { Name = var.rt_name }
+  tags   = { Name = "${var.rt_name}-public" }
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.my_igw.id
+  }
 }
 
-resource "aws_route" "default_route" {
-  route_table_id         = aws_route_table.my_public_rt.id
-  destination_cidr_block = "0.0.0.0/0"
-  gateway_id             = aws_internet_gateway.my_igw.id
+# Private Route Table
+resource "aws_route_table" "private_rt" {
+  vpc_id = aws_vpc.my_vpc.id
+  tags   = { Name = "${var.rt_name}-private" }
+
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.nat.id
+  }
 }
 
-resource "aws_route_table_association" "public_assoc" {
-  count          = length(var.subnet_cidr)
-  subnet_id      = aws_subnet.my_subnet[count.index].id
-  route_table_id = aws_route_table.my_public_rt.id
+# Route Table Associations
+resource "aws_route_table_association" "public" {
+  count          = length(var.public_subnet_cidrs)
+  subnet_id      = aws_subnet.public_subnets[count.index].id
+  route_table_id = aws_route_table.public_rt.id
 }
 
-
-
-
-
-
-
-
-
+resource "aws_route_table_association" "private" {
+  count          = length(var.private_subnet_cidrs)
+  subnet_id      = aws_subnet.private_subnets[count.index].id
+  route_table_id = aws_route_table.private_rt.id
+}
