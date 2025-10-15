@@ -1,15 +1,3 @@
-
-
-module "ec2" {
-  source            = "../../modules/ec2"
-  ami               = "ami-0cfde0ea8edd312d4"
-  instance_name     = "devops-ec2"
-  instance_type     = "t3.micro"
-  subnet_id         = module.vpc.subnet_ids[0]
-  security_group_id = module.vpc.security_group_id
-
-}
-
 module "vpc" {
   source = "../../modules/vpc"
 
@@ -47,8 +35,12 @@ module "eks" {
     Terraform   = "true"
   }
 }
-  
 
-
-
-
+module "ec2" {
+  source            = "../../modules/ec2"
+  ami               = "ami-0cfde0ea8edd312d4"
+  instance_name     = "devops-ec2"
+  instance_type     = "t3.micro"
+  subnet_id         = module.vpc.subnet_ids[0]
+  security_group_id = module.vpc.security_group_id
+}
