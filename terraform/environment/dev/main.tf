@@ -24,7 +24,7 @@ module "eks" {
   source = "../../modules/eks"
 
   cluster_name       = "my-eks-cluster-${var.environment}"
-  kubernetes_version = "1.28"
+  kubernetes_version = "1.27"
   vpc_id             = module.vpc.vpc_id
   subnet_ids         = module.vpc.private_subnet_ids
 
@@ -38,5 +38,7 @@ module "eks" {
     Terraform   = "true"
   }
 }
+
   
+
 
