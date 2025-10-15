@@ -1,48 +1,50 @@
 variable "cluster_name" {
-  description = "EKS cluster name"
-  default     = "dev-eks-cluster"
+  description = "Name of the EKS cluster"
+  type        = string
 }
 
-variable "k8s_version" {
-  description = "Kubernetes version"
-  default     = "1.29"
+variable "kubernetes_version" {
+  description = "Kubernetes version to use for the EKS cluster"
+  type        = string
+  default     = "1.27"
+}
+
+variable "vpc_id" {
+  description = "ID of the VPC where the cluster will be created"
+  type        = string
 }
 
 variable "subnet_ids" {
-  description = "List of subnet IDs for the EKS cluster"
+  description = "List of subnet IDs where the EKS cluster and workers will be deployed"
   type        = list(string)
 }
 
-variable "cluster_sg_id" {
-  description = "Security group ID for EKS cluster control plane"
-}
-
-variable "cluster_role_arn" {
-  description = "IAM role ARN for EKS cluster"
-  default     = ""
-}
-
-variable "node_role_arn" {
-  description = "IAM role ARN for EKS worker nodes"
-  default     = ""
-}
-
-variable "node_instance_type" {
-  default = "t3.micro"
-}
-
-variable "node_desired_capacity" {
-  default = 2
+variable "node_desired_size" {
+  description = "Desired number of worker nodes"
+  type        = number
+  default     = 2
 }
 
 variable "node_max_size" {
-  default = 2
+  description = "Maximum number of worker nodes"
+  type        = number
+  default     = 4
 }
 
 variable "node_min_size" {
-  default = 1
+  description = "Minimum number of worker nodes"
+  type        = number
+  default     = 1
 }
 
-variable "ssh_key_name" {
-  description = "EC2 key pair for node SSH access"
+variable "node_instance_types" {
+  description = "List of instance types for the worker nodes"
+  type        = list(string)
+  default     = ["t3.medium"]
+}
+
+variable "tags" {
+  description = "A map of tags to add to all resources"
+  type        = map(string)
+  default     = {}
 }
