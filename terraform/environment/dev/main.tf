@@ -21,20 +21,25 @@ module "ec2" {
 }
 
 module "eks" {
-  source                = "../../modules/eks"
-  cluster_name          = "dev-eks-cluster"
-  k8s_version           = "1.29"
-  subnet_ids            = module.vpc.subnet_ids
-  cluster_sg_id         = module.vpc.security_group_id
-  node_instance_type    = "t3.micro"
-  node_desired_capacity = 1
-  node_max_size         = 2
-  node_min_size         = 1
-  ssh_key_name          = module.ec2.ssh_key_name
+  source = "../../modules/eks"
 
+  cluster_name       = "my-eks-cluster-${var.environment}"
+  kubernetes_version = "1.27"
+  vpc_id             = module.vpc.vpc_id
+  subnet_ids         = module.vpc.private_subnet_ids
+
+  node_desired_size   = 2
+  node_max_size       = 4
+  node_min_size       = 1
+  node_instance_types = ["t3.medium"]
+
+  tags = {
+    Environment = var.environment
+    Terraform   = "true"
+  }
   depends_on = [
     module.vpc,
     module.ec2
   ]
-
 }
+  
