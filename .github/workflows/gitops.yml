@@ -61,7 +61,7 @@ jobs:
 
       - name: Upload Terraform Output
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: terraform-output
           path: ${{ env.TERRAFORM_DIR }}/terraform-output.json
@@ -77,7 +77,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Download Terraform Output
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: terraform-output
           path: ./terraform-output
