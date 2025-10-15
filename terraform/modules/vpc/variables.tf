@@ -1,34 +1,50 @@
 variable "cidr_block" {
-  default = "10.0.0.0/16"
-}
-
-variable "subnet_cidr" {
-  type    = list(string)
-  default = ["10.0.1.0/24", "10.0.2.0/24"]
-}
-
-variable "az" {
-  type    = list(string)
-  default = ["us-east-2a", "us-east-2b"]
+  description = "CIDR block for the VPC"
+  type        = string
 }
 
 variable "vpc_name" {
-  default = "dev_vpc"
+  description = "Name of the VPC"
+  type        = string
 }
 
-variable "subnet_name" {
-  type    = list(string)
-  default = ["dev_subnet_a", "dev_subnet_b"]
+variable "public_subnet_cidrs" {
+  description = "CIDR blocks for public subnets"
+  type        = list(string)
+}
+
+variable "private_subnet_cidrs" {
+  description = "CIDR blocks for private subnets"
+  type        = list(string)
+}
+
+variable "az" {
+  description = "Availability zones"
+  type        = list(string)
+}
+
+variable "cluster_name" {
+  description = "Name of the EKS cluster"
+  type        = string
 }
 
 variable "sg_name" {
-  default = "dev_sg"
+  description = "Name of the security group"
+  type        = string
 }
 
 variable "igw_name" {
-  default = "dev_igw"
+  description = "Name of the Internet Gateway"
+  type        = string
 }
 
 variable "rt_name" {
-  default = "dev_public_rt"
+  description = "Name of the route table"
+  type        = string
+}
+
+variable "tags" {
+  description = "Additional tags for resources"
+  type        = map(string)
+  default     = {}
 }
