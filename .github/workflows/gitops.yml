@@ -26,10 +26,11 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
+          audience: sts.amazonaws.com
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
@@ -66,9 +67,56 @@ jobs:
           name: terraform-output
           path: ${{ env.TERRAFORM_DIR }}/terraform-output.json
 
+  build:
+    name: Build and Push Docker Images
+    runs-on: ubuntu-latest
+    needs: terraform
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: surendraprajapati
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and Push Frontend Image
+        env:
+          DOCKER_REGISTRY: surendraprajapati
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd frontend
+          docker build -t $DOCKER_REGISTRY/frontend:$IMAGE_TAG .
+          docker push $DOCKER_REGISTRY/frontend:$IMAGE_TAG
+          echo "FRONTEND_IMAGE=$DOCKER_REGISTRY/frontend:$IMAGE_TAG" >> $GITHUB_ENV
+
+      - name: Build and Push Backend Image
+        env:
+          DOCKER_REGISTRY: surendraprajapati
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd backend
+          docker build -t $DOCKER_REGISTRY/backend:$IMAGE_TAG .
+          docker push $DOCKER_REGISTRY/backend:$IMAGE_TAG
+          echo "BACKEND_IMAGE=$DOCKER_REGISTRY/backend:$IMAGE_TAG" >> $GITHUB_ENV
+
+      - name: Update Kubernetes Manifests
+        run: |
+          sed -i "s|image: .*frontend.*|image: ${{ env.FRONTEND_IMAGE }}|g" k8s/all-in-one.yml
+          sed -i "s|image: .*backend.*|image: ${{ env.BACKEND_IMAGE }}|g" k8s/all-in-one.yml
+
+      - name: Upload Updated Manifests
+        uses: actions/upload-artifact@v4
+        with:
+          name: k8s-manifests
+          path: k8s/all-in-one.yml
+
   deploy:
     name: Deploy to EKS
-    needs: terraform
+    needs: [terraform, build]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
 
@@ -83,10 +131,11 @@ jobs:
           path: ./terraform-output
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
+          audience: sts.amazonaws.com
 
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -101,6 +150,12 @@ jobs:
       - name: Update kubeconfig
         run: |
           aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name $(jq -r '.cluster_name.value' terraform-output/terraform-output.json)
+
+      - name: Download Updated Manifests
+        uses: actions/download-artifact@v4
+        with:
+          name: k8s-manifests
+          path: k8s/
 
       - name: Run Ansible Playbook
         env:
