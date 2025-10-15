@@ -1,0 +1,154 @@
+name: Destroy Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to destroy (dev/prod)'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - prod
+      confirmation:
+        description: 'Type "DESTROY" to confirm infrastructure destruction'
+        required: true
+        type: string
+
+env:
+  AWS_REGION: us-east-2
+  TERRAFORM_DIR: terraform/environment/${{ inputs.environment }}
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  validate:
+    name: Validate Destroy Request
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Confirmation
+        if: inputs.confirmation != 'DESTROY'
+        run: |
+          echo "Error: You must type DESTROY exactly to confirm infrastructure destruction"
+          exit 1
+
+  destroy-k8s:
+    name: Remove Kubernetes Resources
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          audience: sts.amazonaws.com
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Ansible and Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible boto3 kubernetes openshift
+
+      - name: Update kubeconfig
+        run: |
+          CLUSTER_NAME="my-eks-cluster-${{ inputs.environment }}"
+          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name $CLUSTER_NAME
+
+      - name: Remove Kubernetes Resources
+        run: |
+          kubectl delete namespace app || true
+          kubectl delete namespace monitoring || true
+          # Wait for resources to be deleted
+          kubectl wait --for=delete namespace/app --timeout=300s || true
+          kubectl wait --for=delete namespace/monitoring --timeout=300s || true
+
+  destroy-infrastructure:
+    name: Destroy Terraform Infrastructure
+    needs: destroy-k8s
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          audience: sts.amazonaws.com
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.0
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+
+      - name: Terraform Init
+        working-directory: ${{ env.TERRAFORM_DIR }}
+        run: terraform init
+
+      - name: Terraform Destroy Plan
+        working-directory: ${{ env.TERRAFORM_DIR }}
+        run: terraform plan -destroy -out=destroy.tfplan
+
+      - name: Terraform Destroy
+        working-directory: ${{ env.TERRAFORM_DIR }}
+        run: terraform apply -auto-approve destroy.tfplan
+
+  cleanup:
+    name: Clean Up Docker Images
+    needs: destroy-infrastructure
+    runs-on: ubuntu-latest
+    if: success()
+    
+    steps:
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: surendraprajapati
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Get Image Tags and Clean Up
+        run: |
+          # List and remove frontend images
+          FRONTEND_TAGS=$(curl -s "https://hub.docker.com/v2/repositories/surendraprajapati/frontend/tags/?page_size=100" | jq -r '.results[].name')
+          for tag in $FRONTEND_TAGS; do
+            docker rmi surendraprajapati/frontend:$tag || true
+          done
+
+          # List and remove backend images
+          BACKEND_TAGS=$(curl -s "https://hub.docker.com/v2/repositories/surendraprajapati/backend/tags/?page_size=100" | jq -r '.results[].name')
+          for tag in $BACKEND_TAGS; do
+            docker rmi surendraprajapati/backend:$tag || true
+          done
+
+  notify:
+    name: Notify Destruction Complete
+    needs: [destroy-infrastructure, cleanup]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Check Pipeline Status
+        run: |
+          if [[ "${{ needs.destroy-infrastructure.result }}" == "success" && "${{ needs.cleanup.result }}" == "success" ]]; then
+            echo "Infrastructure destruction completed successfully"
+            echo "Environment: ${{ inputs.environment }}"
+            echo "Region: ${{ env.AWS_REGION }}"
+            echo "✅ All resources have been cleaned up"
+          else
+            echo "⚠️ Some cleanup steps may have failed. Please check the logs and verify resources manually."
+            exit 1
+          fi
