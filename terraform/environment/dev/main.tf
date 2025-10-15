@@ -23,7 +23,7 @@ module "eks" {
   cluster_name       = "my-eks-cluster-${var.environment}"
   kubernetes_version = "1.31"
   vpc_id             = module.vpc.vpc_id
-  subnet_ids         = module.vpc.private_subnet_ids
+  subnet_ids         = module.vpc.public_subnet_ids
 
   node_desired_size   = 2
   node_max_size       = 4
@@ -44,6 +44,7 @@ module "ec2" {
   subnet_id         = module.vpc.public_subnet_ids[0]
   security_group_id = module.vpc.security_group_id
 }
+
 
 
 
