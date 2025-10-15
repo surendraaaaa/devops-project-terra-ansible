@@ -23,7 +23,7 @@ module "eks" {
   cluster_name       = "my-eks-cluster-${var.environment}"
   kubernetes_version = "1.27"
   vpc_id             = module.vpc.vpc_id
-  subnet_ids         = module.vpc.public_subnet_ids[0]
+  subnet_ids         = module.vpc.private_subnet_ids
 
   node_desired_size   = 2
   node_max_size       = 4
@@ -41,7 +41,6 @@ module "ec2" {
   ami               = "ami-0cfde0ea8edd312d4"
   instance_name     = "devops-ec2"
   instance_type     = "t3.micro"
-  subnet_id         = module.vpc.subnet_ids[0]
+  subnet_id         = module.vpc.public_subnet_ids[0]
   security_group_id = module.vpc.security_group_id
 }
-
