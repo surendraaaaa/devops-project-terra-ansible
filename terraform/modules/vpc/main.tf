@@ -63,6 +63,7 @@ resource "aws_subnet" "private_subnets" {
 ##########################
 
 resource "aws_eip" "nat" {
+  count  = var.create_nat_gateway ? 1 : 0
   domain = "vpc"
   tags = {
     Name = "${var.vpc_name}-nat-eip"
@@ -70,7 +71,8 @@ resource "aws_eip" "nat" {
 }
 
 resource "aws_nat_gateway" "nat" {
-  allocation_id = aws_eip.nat.id
+  count         = var.create_nat_gateway ? 1 : 0
+  allocation_id = aws_eip.nat[0].id
   subnet_id     = aws_subnet.public_subnets[0].id
 
   tags = {
@@ -79,6 +81,7 @@ resource "aws_nat_gateway" "nat" {
 
   depends_on = [aws_internet_gateway.my_igw]
 }
+
 
 ##########################
 #        SG Setup        #
@@ -180,3 +183,4 @@ resource "aws_route_table_association" "private" {
   subnet_id      = aws_subnet.private_subnets[count.index].id
   route_table_id = aws_route_table.private_rt.id
 }
+
